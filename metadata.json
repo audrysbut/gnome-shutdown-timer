@@ -1,0 +1,6 @@
+{
+  "name": "shutdown-timer",
+  "description": "ShutDown timer indicator",
+  "uuid": "shutdowntimer@audrius.home.com",
+  "shell-version": ["42"]
+}
