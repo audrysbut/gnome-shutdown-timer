@@ -34,7 +34,7 @@ var ShutdownFileMonitor = class ShutdownFileMonitor {
       return;
     }
 
-    return Math.floor((shutDownTime - new Date().getTime()) / 1000) + 1;
+    return Math.floor((shutDownTime - new Date().getTime()) / 1000);
   }
 
   stopWatchingFile() {
