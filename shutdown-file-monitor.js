@@ -6,27 +6,46 @@ var ShutdownFileMonitor = class ShutdownFileMonitor {
     this.monitor = undefined;
     this.extractor = extractor;
     this.timer = timer;
+
+    this.#init();
+  }
+
+  #init() {
+    let file = Gio.File.new_for_path(this.filePath);
+    if (file.query_exists(null)) {
+      this.#onFileCreated(file);
+    } else {
+      this.#onFileDeleted(file);
+    }
   }
 
   watchFile() {
     let file = Gio.File.new_for_path(this.filePath);
 
     this.monitor = file.monitor(Gio.FileMonitorFlags.NONE, null);
-    this.monitor.connect("changed", (monitor, file, otherFile, eventType) => {
+    this.monitor.connect("changed", (_1, file, _2, eventType) => {
       switch (eventType) {
         case Gio.FileMonitorEvent.CREATED:
-          log(`File created: ${file.get_path()}`);
-          const shutdownTime = this.extractor.getShutdownTime(this.filePath);
-          const diffSec = this.#getDiffInSeconds(shutdownTime);
-          log(`diffSecs: ${diffSec}`);
-          this.timer.setTimerValue(diffSec);
+          this.#onFileCreated(file);
           break;
         case Gio.FileMonitorEvent.DELETED:
-          log(`File deleted: ${file.get_path()}`);
-          this.timer.setTimerValue(undefined);
+          this.#onFileDeleted(file);
           break;
       }
     });
+  }
+
+  #onFileDeleted(file) {
+    log(`File deleted: ${file.get_path()}`);
+    this.timer.setTimerValue(undefined);
+  }
+
+  #onFileCreated(file) {
+    log(`File created: ${file.get_path()}`);
+    const shutdownTime = this.extractor.getShutdownTime(this.filePath);
+    const diffSec = this.#getDiffInSeconds(shutdownTime);
+    log(`diffSecs: ${diffSec}`);
+    this.timer.setTimerValue(diffSec);
   }
 
   #getDiffInSeconds(shutDownTime) {
@@ -34,7 +53,7 @@ var ShutdownFileMonitor = class ShutdownFileMonitor {
       return;
     }
 
-    return Math.floor((shutDownTime - new Date().getTime()) / 1000);
+    return Math.floor((shutDownTime - new Date().getTime()) / 1000) + 1;
   }
 
   stopWatchingFile() {
