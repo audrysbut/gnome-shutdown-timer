@@ -8,7 +8,6 @@ var Timer = class Timer {
   }
 
   setTimerValue(timerValue) {
-    this.timerValue = timerValue;
     if (this.timerHandler) {
       this.#stopTimer();
     }
@@ -22,16 +21,20 @@ var Timer = class Timer {
 
       this.timerHandler = Mainloop.timeout_add_seconds(1, () => {
         this.timerValue--;
+        if (this.timerValue <= 0) {
+          this.timerValue = undefined;
+          this.#stopTimer();
+          this.indicator.setTimerValue("");
+          this.indicator.hide();
+          return false;
+        }
         const timeString = this.#getTimeString(this.timerValue);
         this.indicator.setTimerValue(timeString);
-
-        if (!this.timerValue) {
-          this.#stopTimer();
-        }
         return true;
       });
     } else {
       this.#stopTimer();
+      this.indicator.setTimerValue("");
       this.indicator.hide();
     }
   }
@@ -44,7 +47,7 @@ var Timer = class Timer {
   }
 
   #getTimeString(diffSec) {
-    if (!diffSec) {
+    if (diffSec == null || diffSec <= 0) {
       return;
     }
 

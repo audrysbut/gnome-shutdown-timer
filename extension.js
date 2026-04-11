@@ -1,13 +1,19 @@
-const { extensionUtils } = imports.misc;
-const Me = extensionUtils.getCurrentExtension();
+const ExtensionUtils = imports.misc.extensionUtils;
+const Me = ExtensionUtils.getCurrentExtension();
 
-const Timer = Me.imports.timer.Timer;  
-const ShutdownFileMonitor = Me.imports['shutdown-file-monitor'].ShutdownFileMonitor
-const ShutdownTimeExtractor = Me.imports['shutdown-time-extractor'].ShutdownTimeExtractor
+const Timer = Me.imports.timer.Timer;
+const ShutdownFileMonitor =
+  Me.imports["shutdown-file-monitor"].ShutdownFileMonitor;
+const ShutdownTimeExtractor =
+  Me.imports["shutdown-time-extractor"].ShutdownTimeExtractor;
+
 const GETTEXT_DOMAIN = "my-indicator-extension";
+ExtensionUtils.initTranslations(GETTEXT_DOMAIN);
+const Gettext = imports.gettext;
+const _ = Gettext.domain(GETTEXT_DOMAIN).gettext;
+
 const { GObject, St } = imports.gi;
 
-const ExtensionUtils = imports.misc.extensionUtils;
 const Main = imports.ui.main;
 const PanelMenu = imports.ui.panelMenu;
 
@@ -28,6 +34,7 @@ const Indicator = GObject.registerClass(
         this.button.set_label(time);
         return;
       }
+      this.button.set_label("");
     }
   }
 );
@@ -35,7 +42,6 @@ const Indicator = GObject.registerClass(
 class Extension {
   constructor(uuid) {
     this._uuid = uuid;
-    ExtensionUtils.initTranslations(GETTEXT_DOMAIN);
   }
 
   enable() {

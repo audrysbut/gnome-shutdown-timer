@@ -57,9 +57,9 @@ var ShutdownFileMonitor = class ShutdownFileMonitor {
   }
 
   stopWatchingFile() {
-    if (this.monitor !== null) {
-      this.monitor.cancel(); // Cancel the monitor and stop watching
-      this.monitor = null; // Clear the monitor reference
+    if (this.monitor) {
+      this.monitor.cancel();
+      this.monitor = null;
       log("File monitoring stopped");
     } else {
       log("No file monitor to stop");
