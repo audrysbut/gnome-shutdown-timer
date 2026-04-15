@@ -1,6 +1,40 @@
+/* Countdown chip — tuned for the default dark GNOME top bar */
 .shutdownTimerPanel {
-  color: red;
-  font-size: 24px; /* Increased font size */
-  font-weight: bold; /* Bold text */
+  font-size: 19px;
+  font-weight: 700;
+  font-family: ui-monospace, "Source Code Pro", monospace;
+  font-feature-settings: "tnum";
+  /* Wide letter-spacing was stealing horizontal space and clipping in the panel */
+  letter-spacing: 0.02em;
+  line-height: 1.35;
+
+  color: #ffffff;
+  /* Dark halo so digits stay readable on busy / light panel areas */
+  text-shadow:
+    0 0 2px rgba(0, 0, 0, 0.9),
+    0 1px 3px rgba(0, 0, 0, 0.85);
+  /* Slightly deeper chip so white text contrasts more */
+  background-color: rgba(120, 45, 20, 0.55);
+  border: 1px solid rgba(255, 200, 160, 0.65);
+  border-radius: 8px;
+  /* Slight floor for tabular digits; ellipsize is off in JS so no need for a wide min-width */
+  min-width: 0;
+  padding: 4px 8px;
+  margin: 0 1px;
+
   cursor: pointer;
+  transition-duration: 150ms;
+}
+
+.shutdownTimerPanel:hover {
+  background-color: rgba(140, 55, 28, 0.68);
+  border-color: rgba(255, 210, 175, 0.8);
+}
+
+.shutdownTimerPanel:active {
+  background-color: rgba(160, 65, 32, 0.78);
+}
+
+.shutdownTimerPanel:focus {
+  outline: none;
 }

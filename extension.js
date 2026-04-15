@@ -12,7 +12,7 @@ ExtensionUtils.initTranslations(GETTEXT_DOMAIN);
 const Gettext = imports.gettext;
 const _ = Gettext.domain(GETTEXT_DOMAIN).gettext;
 
-const { GObject, Gio, St } = imports.gi;
+const { Clutter, GObject, Gio, Pango, St } = imports.gi;
 
 const Main = imports.ui.main;
 const PanelMenu = imports.ui.panelMenu;
@@ -27,8 +27,10 @@ const Indicator = GObject.registerClass(
       this.button = new St.Button({
         style_class: "shutdownTimerPanel",
         label: "",
-        x_expand: true,
-        y_expand: true,
+        // Natural width/height so the full "HH:MM:SS" is allocated; expand +
+        // default ellipsize clips the label in the panel.
+        x_expand: false,
+        y_expand: false,
       });
       // Clicks hit this child St.Button; the parent PanelMenu.Button's
       // vfunc_event is not invoked for events delivered to the child.
@@ -73,12 +75,49 @@ const Indicator = GObject.registerClass(
       if (this._cancelSystemShutdown()) this._timer.setTimerValue(undefined);
     }
 
+    /**
+     * St.Button's label is a Clutter.Text on this Shell, not St.Label (see debug
+     * logs: childName Clutter_Text). Ellipsize must be cleared on that actor.
+     */
+    _syncTimerLabelLayout() {
+      const applyToText = (ct) => {
+        if (!ct) return;
+        ct.line_wrap = false;
+        ct.ellipsize = Pango.EllipsizeMode.NONE;
+      };
+
+      const child = this.button.get_child();
+      if (child instanceof Clutter.Text) {
+        applyToText(child);
+        return;
+      }
+      if (child instanceof St.Label) {
+        applyToText(child.clutter_text);
+        return;
+      }
+      const walk = (a) => {
+        if (!a) return;
+        if (a instanceof Clutter.Text) {
+          applyToText(a);
+          return;
+        }
+        if (a instanceof St.Label) {
+          applyToText(a.clutter_text);
+          return;
+        }
+        for (const c of a.get_children?.() ?? []) walk(c);
+      };
+      walk(this.button);
+    }
+
     setTimerValue(time) {
       if (time) {
         this.button.set_label(time);
+        this._syncTimerLabelLayout();
         return;
       }
       this.button.set_label("");
+      this._syncTimerLabelLayout();
     }
   }
 );
