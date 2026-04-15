@@ -38,7 +38,8 @@ const Indicator = GObject.registerClass(
         if (!this._timer || this._timer.timerValue == null) return;
         this._onTimerClicked();
       });
-      this.add_child(this.button);
+      this._chipWrap = new St.Bin({ child: this.button });
+      this.add_child(this._chipWrap);
     }
 
     setShutdownTimer(timer) {
@@ -76,23 +77,31 @@ const Indicator = GObject.registerClass(
     }
 
     /**
-     * St.Button's label is a Clutter.Text on this Shell, not St.Label (see debug
-     * logs: childName Clutter_Text). Ellipsize must be cleared on that actor.
+     * St.Button's label is a Clutter.Text on this Shell, not St.Label.
+     * Ellipsize must be cleared on that actor.
      */
     _syncTimerLabelLayout() {
       const applyToText = (ct) => {
         if (!ct) return;
         ct.line_wrap = false;
         ct.ellipsize = Pango.EllipsizeMode.NONE;
+        if (ct instanceof Clutter.Actor) {
+          ct.x_align = Clutter.ActorAlign.CENTER;
+          ct.y_align = Clutter.ActorAlign.CENTER;
+        }
       };
 
       const child = this.button.get_child();
       if (child instanceof Clutter.Text) {
         applyToText(child);
+        this.button.x_align = Clutter.ActorAlign.CENTER;
+        this.button.y_align = Clutter.ActorAlign.CENTER;
         return;
       }
       if (child instanceof St.Label) {
         applyToText(child.clutter_text);
+        this.button.x_align = Clutter.ActorAlign.CENTER;
+        this.button.y_align = Clutter.ActorAlign.CENTER;
         return;
       }
       const walk = (a) => {
@@ -108,6 +117,8 @@ const Indicator = GObject.registerClass(
         for (const c of a.get_children?.() ?? []) walk(c);
       };
       walk(this.button);
+      this.button.x_align = Clutter.ActorAlign.CENTER;
+      this.button.y_align = Clutter.ActorAlign.CENTER;
     }
 
     setTimerValue(time) {
