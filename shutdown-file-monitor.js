@@ -36,12 +36,12 @@ var ShutdownFileMonitor = class ShutdownFileMonitor {
   }
 
   #onFileDeleted(file) {
-    log(`File deleted: ${file.get_path()}`);
+    log(`File deleted: ${this.filePath}`);
     this.timer.setTimerValue(undefined);
   }
 
   #onFileCreated(file) {
-    log(`File created: ${file.get_path()}`);
+    log(`File created: ${this.filePath}`);
     const shutdownTime = this.extractor.getShutdownTime(this.filePath);
     const diffSec = this.#getDiffInSeconds(shutdownTime);
     log(`diffSecs: ${diffSec}`);
@@ -53,7 +53,7 @@ var ShutdownFileMonitor = class ShutdownFileMonitor {
       return;
     }
 
-    return Math.floor((shutDownTime - new Date().getTime()) / 1000) + 1;
+    return Math.floor((shutDownTime - Date.now()) / 1000) + 1;
   }
 
   stopWatchingFile() {

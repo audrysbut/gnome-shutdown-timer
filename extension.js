@@ -23,6 +23,8 @@ const Indicator = GObject.registerClass(
       super._init(0.0, _("ShutdownTimer"), true);
 
       this._timer = null;
+      this._dbusProxy = null;
+      this._layoutSynced = false;
 
       this.button = new St.Button({
         style_class: "shutdownTimerPanel",
@@ -48,17 +50,18 @@ const Indicator = GObject.registerClass(
 
     _cancelSystemShutdown() {
       try {
-        // Shell 42 / older GJS: makeForBusSync is unavailable; use new_for_bus_sync.
-        const proxy = Gio.DBusProxy.new_for_bus_sync(
-          Gio.BusType.SYSTEM,
-          Gio.DBusProxyFlags.NONE,
-          null,
-          "org.freedesktop.login1",
-          "/org/freedesktop/login1",
-          "org.freedesktop.login1.Manager",
-          null
-        );
-        proxy.call_sync(
+        if (!this._dbusProxy) {
+          this._dbusProxy = Gio.DBusProxy.new_for_bus_sync(
+            Gio.BusType.SYSTEM,
+            Gio.DBusProxyFlags.NONE,
+            null,
+            "org.freedesktop.login1",
+            "/org/freedesktop/login1",
+            "org.freedesktop.login1.Manager",
+            null
+          );
+        }
+        this._dbusProxy.call_sync(
           "CancelScheduledShutdown",
           null,
           Gio.DBusCallFlags.NONE,
@@ -124,11 +127,17 @@ const Indicator = GObject.registerClass(
     setTimerValue(time) {
       if (time) {
         this.button.set_label(time);
-        this._syncTimerLabelLayout();
+        if (!this._layoutSynced) {
+          this._syncTimerLabelLayout();
+          this._layoutSynced = true;
+        }
         return;
       }
       this.button.set_label("");
-      this._syncTimerLabelLayout();
+      if (!this._layoutSynced) {
+        this._syncTimerLabelLayout();
+        this._layoutSynced = true;
+      }
     }
   }
 );

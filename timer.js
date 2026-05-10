@@ -52,10 +52,10 @@ var Timer = class Timer {
     }
 
     const hours = Math.floor(diffSec / 3600);
-    const minute = Math.floor((diffSec - hours * 3600) / 60);
-    const seconds = diffSec - hours * 3600 - minute * 60;
+    const minutes = Math.floor((diffSec / 60) % 60);
+    const seconds = diffSec % 60;
     return `${this.#formatNumber(hours)}:${this.#formatNumber(
-      minute
+      minutes
     )}:${this.#formatNumber(seconds)}`;
   }
 

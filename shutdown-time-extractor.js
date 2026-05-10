@@ -1,5 +1,7 @@
 const Gio = imports.gi.Gio;
 
+const USEC_REGEX = /^USEC=(\d+)$/;
+
 var ShutdownTimeExtractor = class ShutdownTimeExtractor {
   getShutdownTime(filePath) {
     const file = Gio.File.new_for_path(filePath);
@@ -17,7 +19,7 @@ var ShutdownTimeExtractor = class ShutdownTimeExtractor {
         if (!trimmed) {
           continue;
         }
-        const match = trimmed.match(/^USEC=(\d+)$/);
+        const match = trimmed.match(USEC_REGEX);
         if (!match) {
           continue;
         }
