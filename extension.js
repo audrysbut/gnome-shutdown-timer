@@ -12,7 +12,7 @@ ExtensionUtils.initTranslations(GETTEXT_DOMAIN);
 const Gettext = imports.gettext;
 const _ = Gettext.domain(GETTEXT_DOMAIN).gettext;
 
-const { Clutter, GObject, Gio, Pango, St } = imports.gi;
+const { Clutter, GLib, GObject, Gio, Pango, St } = imports.gi;
 
 const Main = imports.ui.main;
 const PanelMenu = imports.ui.panelMenu;
@@ -24,23 +24,25 @@ const Indicator = GObject.registerClass(
 
       this._timer = null;
       this._dbusProxy = null;
-      this._layoutSynced = false;
+      this._shutdownActive = false;
 
-      this.button = new St.Button({
+      this._chip = new St.Button({
         style_class: "shutdownTimerPanel",
         label: "",
-        // Natural width/height so the full "HH:MM:SS" is allocated; expand +
-        // default ellipsize clips the label in the panel.
         x_expand: false,
         y_expand: false,
       });
-      // Clicks hit this child St.Button; the parent PanelMenu.Button's
-      // vfunc_event is not invoked for events delivered to the child.
-      this.button.connect("clicked", () => {
-        if (!this._timer || this._timer.timerValue == null) return;
-        this._onTimerClicked();
+      this._chip.add_style_class_name("shutdownTimerQuickBtn");
+      this._chip.set_label("⏻ 2:30");
+      this._syncTimerLabelLayout();
+      this._chip.connect("clicked", () => {
+        if (this._shutdownActive) {
+          this._onTimerClicked();
+        } else {
+          this._onQuickShutdownClicked();
+        }
       });
-      this._chipWrap = new St.Bin({ child: this.button });
+      this._chipWrap = new St.Bin({ child: this._chip });
       this.add_child(this._chipWrap);
     }
 
@@ -79,10 +81,32 @@ const Indicator = GObject.registerClass(
       if (this._cancelSystemShutdown()) this._timer.setTimerValue(undefined);
     }
 
-    /**
-     * St.Button's label is a Clutter.Text on this Shell, not St.Label.
-     * Ellipsize must be cleared on that actor.
-     */
+    _onQuickShutdownClicked() {
+      try {
+        if (!this._dbusProxy) {
+          this._dbusProxy = Gio.DBusProxy.new_for_bus_sync(
+            Gio.BusType.SYSTEM,
+            Gio.DBusProxyFlags.NONE,
+            null,
+            "org.freedesktop.login1",
+            "/org/freedesktop/login1",
+            "org.freedesktop.login1.Manager",
+            null
+          );
+        }
+        const usec = GLib.get_real_time() + 150 * 60 * 1000000;
+        this._dbusProxy.call_sync(
+          "ScheduleShutdown",
+          new GLib.Variant("(st)", ["poweroff", usec]),
+          Gio.DBusCallFlags.NONE,
+          -1,
+          null
+        );
+      } catch (e) {
+        logError(e, "shutdown-timer: ScheduleShutdown failed");
+      }
+    }
+
     _syncTimerLabelLayout() {
       const applyToText = (ct) => {
         if (!ct) return;
@@ -94,17 +118,17 @@ const Indicator = GObject.registerClass(
         }
       };
 
-      const child = this.button.get_child();
+      const child = this._chip.get_child();
       if (child instanceof Clutter.Text) {
         applyToText(child);
-        this.button.x_align = Clutter.ActorAlign.CENTER;
-        this.button.y_align = Clutter.ActorAlign.CENTER;
+        this._chip.x_align = Clutter.ActorAlign.CENTER;
+        this._chip.y_align = Clutter.ActorAlign.CENTER;
         return;
       }
       if (child instanceof St.Label) {
         applyToText(child.clutter_text);
-        this.button.x_align = Clutter.ActorAlign.CENTER;
-        this.button.y_align = Clutter.ActorAlign.CENTER;
+        this._chip.x_align = Clutter.ActorAlign.CENTER;
+        this._chip.y_align = Clutter.ActorAlign.CENTER;
         return;
       }
       const walk = (a) => {
@@ -119,25 +143,23 @@ const Indicator = GObject.registerClass(
         }
         for (const c of a.get_children?.() ?? []) walk(c);
       };
-      walk(this.button);
-      this.button.x_align = Clutter.ActorAlign.CENTER;
-      this.button.y_align = Clutter.ActorAlign.CENTER;
+      walk(this._chip);
+      this._chip.x_align = Clutter.ActorAlign.CENTER;
+      this._chip.y_align = Clutter.ActorAlign.CENTER;
     }
 
     setTimerValue(time) {
       if (time) {
-        this.button.set_label(time);
-        if (!this._layoutSynced) {
-          this._syncTimerLabelLayout();
-          this._layoutSynced = true;
-        }
+        this._chip.remove_style_class_name("shutdownTimerQuickBtn");
+        this._chip.set_label(time);
+        this._syncTimerLabelLayout();
+        this._shutdownActive = true;
         return;
       }
-      this.button.set_label("");
-      if (!this._layoutSynced) {
-        this._syncTimerLabelLayout();
-        this._layoutSynced = true;
-      }
+      this._chip.add_style_class_name("shutdownTimerQuickBtn");
+      this._chip.set_label("⏻ 2:30");
+      this._syncTimerLabelLayout();
+      this._shutdownActive = false;
     }
   }
 );
@@ -149,7 +171,6 @@ class Extension {
 
   enable() {
     this._indicator = new Indicator();
-    this._indicator.hide();
 
     const extractor = new ShutdownTimeExtractor();
     const timer = new Timer(this._indicator);

@@ -17,15 +17,12 @@ var Timer = class Timer {
       const timeString = this.#getTimeString(this.timerValue);
       this.indicator.setTimerValue(timeString);
 
-      this.indicator.show();
-
       this.timerHandler = Mainloop.timeout_add_seconds(1, () => {
         this.timerValue--;
         if (this.timerValue <= 0) {
           this.timerValue = undefined;
           this.#stopTimer();
           this.indicator.setTimerValue("");
-          this.indicator.hide();
           return false;
         }
         const timeString = this.#getTimeString(this.timerValue);
@@ -35,7 +32,6 @@ var Timer = class Timer {
     } else {
       this.#stopTimer();
       this.indicator.setTimerValue("");
-      this.indicator.hide();
     }
   }
 
