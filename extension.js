@@ -16,11 +16,12 @@ const { Clutter, GLib, GObject, Gio, Pango, St } = imports.gi;
 
 const Main = imports.ui.main;
 const PanelMenu = imports.ui.panelMenu;
+const PopupMenu = imports.ui.popupMenu;
 
 const Indicator = GObject.registerClass(
   class Indicator extends PanelMenu.Button {
     _init() {
-      super._init(0.0, _("ShutdownTimer"), true);
+      super._init(0.0, _("ShutdownTimer"));
 
       this._timer = null;
       this._dbusProxy = null;
@@ -32,18 +33,63 @@ const Indicator = GObject.registerClass(
         x_expand: false,
         y_expand: false,
       });
-      this._chip.add_style_class_name("shutdownTimerQuickBtn");
-      this._chip.set_label("⏻ 2:30");
-      this._syncTimerLabelLayout();
+      this.add_child(this._chip);
+      this.visible = false;
+
+      const chipText = this._chip.get_child();
+      if (chipText instanceof Clutter.Text) {
+        chipText.line_wrap = false;
+        chipText.ellipsize = Pango.EllipsizeMode.NONE;
+      }
+
       this._chip.connect("clicked", () => {
-        if (this._shutdownActive) {
-          this._onTimerClicked();
-        } else {
-          this._onQuickShutdownClicked();
+        if (this._shutdownActive) this._onTimerClicked();
+      });
+
+      this._menuItem = new PopupMenu.PopupImageMenuItem(
+        _("Shutdown in 2:30"),
+        "system-shutdown-symbolic"
+      );
+      this._menuItem.label.add_style_class_name("shutdownTimerMenuLabel");
+      this._menuItem.connect("activate", () => {
+        this._onQuickShutdownClicked();
+      });
+
+      this.connect("destroy", () => {
+        if (this._menuItem) {
+          if (this._menuItem.get_parent())
+            this._menuItem.get_parent().remove_child(this._menuItem);
+          this._menuItem.destroy();
+          this._menuItem = null;
         }
       });
-      this._chipWrap = new St.Bin({ child: this._chip });
-      this.add_child(this._chipWrap);
+
+      this._insertIntoSystemMenu();
+    }
+
+    _insertIntoSystemMenu() {
+      try {
+        const aggregateMenu = Main.panel.statusArea.aggregateMenu;
+        if (!aggregateMenu || !aggregateMenu._system) {
+          this.menu.addMenuItem(this._menuItem);
+          return;
+        }
+
+        const systemMenu = aggregateMenu._system.menu;
+        const sessionSubMenu = aggregateMenu._system._sessionSubMenu;
+
+        if (!sessionSubMenu) {
+          systemMenu.addMenuItem(this._menuItem);
+          return;
+        }
+
+        const menuItems = systemMenu._getMenuItems();
+        const idx = menuItems.indexOf(sessionSubMenu);
+        systemMenu.addMenuItem(this._menuItem, idx !== -1 ? idx : -1);
+      } catch (e) {
+        logError(e, "shutdown-timer: failed to insert into system menu");
+        this.menu.addMenuItem(this._menuItem);
+      }
     }
 
     setShutdownTimer(timer) {
@@ -102,63 +148,28 @@ const Indicator = GObject.registerClass(
           -1,
           null
         );
+        Main.notify(_("Shutdown scheduled for 2 hours 30 minutes"));
       } catch (e) {
         logError(e, "shutdown-timer: ScheduleShutdown failed");
       }
     }
 
-    _syncTimerLabelLayout() {
-      const applyToText = (ct) => {
-        if (!ct) return;
-        ct.line_wrap = false;
-        ct.ellipsize = Pango.EllipsizeMode.NONE;
-        if (ct instanceof Clutter.Actor) {
-          ct.x_align = Clutter.ActorAlign.CENTER;
-          ct.y_align = Clutter.ActorAlign.CENTER;
-        }
-      };
-
-      const child = this._chip.get_child();
-      if (child instanceof Clutter.Text) {
-        applyToText(child);
-        this._chip.x_align = Clutter.ActorAlign.CENTER;
-        this._chip.y_align = Clutter.ActorAlign.CENTER;
-        return;
-      }
-      if (child instanceof St.Label) {
-        applyToText(child.clutter_text);
-        this._chip.x_align = Clutter.ActorAlign.CENTER;
-        this._chip.y_align = Clutter.ActorAlign.CENTER;
-        return;
-      }
-      const walk = (a) => {
-        if (!a) return;
-        if (a instanceof Clutter.Text) {
-          applyToText(a);
-          return;
-        }
-        if (a instanceof St.Label) {
-          applyToText(a.clutter_text);
-          return;
-        }
-        for (const c of a.get_children?.() ?? []) walk(c);
-      };
-      walk(this._chip);
-      this._chip.x_align = Clutter.ActorAlign.CENTER;
-      this._chip.y_align = Clutter.ActorAlign.CENTER;
-    }
-
     setTimerValue(time) {
       if (time) {
-        this._chip.remove_style_class_name("shutdownTimerQuickBtn");
         this._chip.set_label(time);
-        this._syncTimerLabelLayout();
+        const chipText = this._chip.get_child();
+        if (chipText instanceof Clutter.Text) {
+          chipText.line_wrap = false;
+          chipText.ellipsize = Pango.EllipsizeMode.NONE;
+        }
+        this.visible = true;
+        this._menuItem.visible = false;
         this._shutdownActive = true;
         return;
       }
-      this._chip.add_style_class_name("shutdownTimerQuickBtn");
-      this._chip.set_label("⏻ 2:30");
-      this._syncTimerLabelLayout();
+      this._chip.set_label("");
+      this.visible = false;
+      this._menuItem.visible = true;
       this._shutdownActive = false;
     }
   }
@@ -177,7 +188,6 @@ class Extension {
     this._indicator.setShutdownTimer(timer);
     this.monitor = new ShutdownFileMonitor(extractor, timer);
     Main.panel.addToStatusArea(this._uuid, this._indicator);
-    // Main.panel.addToStatusArea(this._uuid, this._indicator, 0, 'left');
 
     this.monitor.watchFile();
   }

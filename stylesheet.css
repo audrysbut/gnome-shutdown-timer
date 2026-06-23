@@ -39,17 +39,9 @@
   outline: none;
 }
 
-.shutdownTimerQuickBtn {
-  font-size: 16px;
-  background-color: rgba(40, 100, 60, 0.55);
-  border-color: rgba(160, 255, 200, 0.65);
+.shutdownTimerMenuLabel {
+  font-weight: 700;
+  color: #66cc88;
 }
 
-.shutdownTimerQuickBtn:hover {
-  background-color: rgba(50, 120, 72, 0.68);
-  border-color: rgba(180, 255, 220, 0.8);
-}
 
-.shutdownTimerQuickBtn:active {
-  background-color: rgba(60, 140, 84, 0.78);
-}
