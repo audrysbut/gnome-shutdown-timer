@@ -8,24 +8,22 @@ GNOME Shell 42 extension. Raw GJS (no build, no tests, no linter).
 
 ## Architecture
 
-- `Indicator` (`PanelMenu.Button`) holds a hidden `St.Button` (`_chip`)
-  shown only during countdown. The quick-shutdown action lives in a
-  `PopupImageMenuItem` inserted into the system menu (before the session
-  submenu). Two states:
-  - **Quick-shutdown state** — `_shutdownActive = false`. Chip hidden.
-    Menu item visible, label `"Shutdown in 2:30"`, styled green via
-    `.shutdownTimerMenuLabel`. Activating it calls
-    `ScheduleShutdown("poweroff", now + 150min)` over DBus on
-    `org.freedesktop.login1.Manager` and shows a `Main.notify`.
-  - **Countdown state** — `_shutdownActive = true`. Chip visible, label
-    `HH:MM:SS`, CSS class `.shutdownTimerPanel` (warm). Menu item hidden.
-    Clicking the chip calls `CancelScheduledShutdown` over DBus.
-- `Indicator.setTimerValue(time)` toggles between the two states: truthy
-  value shows the chip + hides menu item; falsy hides chip + shows menu item.
+- `Indicator` (`PanelMenu.Button`) holds a single `St.Button` (`_chip`)
+  wrapped in `St.Bin`. The chip swaps between two states:
+  - **Quick-shutdown state** — `_shutdownActive = false`, label `"⏻ 2:30"`,
+    CSS classes `shutdownTimerPanel shutdownTimerQuickBtn` (green accent).
+    Click calls `ScheduleShutdown("poweroff", now + 150min)` on
+    `org.freedesktop.login1.Manager` via DBus.
+  - **Countdown state** — `_shutdownActive = true`, label `HH:MM:SS`,
+    CSS class `shutdownTimerPanel` only (warm). Click calls
+    `CancelScheduledShutdown` via DBus.
+- `Timer.setTimerValue(time)` → `Indicator.setTimerValue(time)` toggles
+  between states: swaps label, removes/adds `shutdownTimerQuickBtn` class,
+  sets `_shutdownActive`.
+- Both states call `_syncTimerLabelLayout()` to clear ellipsize and center
+  text vertically.
 - `ShutdownFileMonitor` watches `/run/systemd/shutdown/scheduled` for
-  creates/deletes. It drives `Timer.setTimerValue()` →
-  `Indicator.setTimerValue()` to toggle between states.
-- Both states ensure `ellipsize` is cleared on the chip text.
+  creates/deletes. It drives `Timer.setTimerValue()` to toggle between states.
 
 ## Key files
 
@@ -35,4 +33,4 @@ GNOME Shell 42 extension. Raw GJS (no build, no tests, no linter).
 | `timer.js` | 1-second Mainloop countdown |
 | `shutdown-file-monitor.js` | Gio.FileMonitor on systemd file |
 | `shutdown-time-extractor.js` | Parses `USEC=` from shutdown file |
-| `stylesheet.css` | `.shutdownTimerPanel` (countdown chip, warm) + `.shutdownTimerMenuLabel` (menu label, green) |
+| `stylesheet.css` | `.shutdownTimerPanel` (countdown chip, warm) + `.shutdownTimerQuickBtn` (quick, green) |
